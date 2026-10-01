@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "brave-local",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Control the currently open Brave browser on the same Windows PC without choosing a device or profile in advance.",
   "author": {
     "name": "Mohammad Sotoudeh"

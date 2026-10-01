@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "brave-local": {
+      "type": "stdio",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${PLUGIN_ROOT}\\scripts\\brave-local-mcp.ps1"
+      ],
+      "env": {},
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}

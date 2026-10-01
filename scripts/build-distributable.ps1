@@ -1,18 +1,14 @@
-param([string]$Version='0.2.0')
+param([string]$Version='0.2.1')
 $ErrorActionPreference='Stop'
 $RepoRoot=Split-Path -Parent $PSScriptRoot
 $PluginRoot=Join-Path $RepoRoot 'plugins\brave-local'
-$Bin=Join-Path $PluginRoot 'bin\windows\brave-local-mcp.exe'
 $Dist=Join-Path $RepoRoot 'dist'
 $Zip=Join-Path $Dist "brave-local-$Version-windows.zip"
 
-New-Item -ItemType Directory -Force (Split-Path $Bin -Parent),(Join-Path $PluginRoot 'scripts'),$Dist | Out-Null
-Push-Location $RepoRoot
-try {
-  & go build -trimpath -o $Bin .\cmd\brave-local-mcp
-  if($LASTEXITCODE -ne 0){throw 'go build failed'}
-} finally { Pop-Location }
+New-Item -ItemType Directory -Force (Join-Path $PluginRoot 'scripts'),$Dist | Out-Null
+Remove-Item (Join-Path $PluginRoot 'bin') -Recurse -Force -ErrorAction SilentlyContinue
 
+Copy-Item (Join-Path $RepoRoot 'scripts\brave-local-mcp.ps1') (Join-Path $PluginRoot 'scripts\brave-local-mcp.ps1') -Force
 Copy-Item (Join-Path $RepoRoot 'scripts\uia-command.ps1') (Join-Path $PluginRoot 'scripts\uia-command.ps1') -Force
 Copy-Item (Join-Path $RepoRoot 'scripts\uia-printwindow.ps1') (Join-Path $PluginRoot 'scripts\uia-printwindow.ps1') -Force
 
@@ -39,6 +35,6 @@ try {
   Version=$Version
   PluginRoot=$PluginRoot
   Archive=$Zip
-  Binary=$Bin
+  Runtime='powershell.exe'
   Size=(Get-Item $Zip).Length
 } | ConvertTo-Json
