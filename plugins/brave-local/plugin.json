@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "brave-local",
+  "version": "0.2.0",
+  "description": "Control the currently open Brave browser on the same Windows PC without choosing a device or profile in advance.",
+  "author": {
+    "name": "Mohammad Sotoudeh"
+  },
+  "keywords": ["brave", "browser", "automation", "local", "windows"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Brave",
+        "shortDescription": "Control your currently open Brave session",
+        "longDescription": "Read and interact with any currently open Brave window or profile on this Windows PC through a local MCP process.",
+        "developerName": "Mohammad Sotoudeh",
+        "category": "Productivity",
+        "capabilities": ["Read open Brave tabs", "Navigate pages", "Click and type", "Capture screenshots"],
+        "defaultPrompt": [
+          "List my currently open Brave tabs.",
+          "Use Brave to inspect the page I already have open."
+        ]
+      }
+    }
+  }
+}

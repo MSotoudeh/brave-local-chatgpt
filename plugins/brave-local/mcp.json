@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "brave-local": {
+      "type": "stdio",
+      "command": "./bin/windows/brave-local-mcp.exe",
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}

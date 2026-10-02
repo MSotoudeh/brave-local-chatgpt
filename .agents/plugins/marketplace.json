@@ -1,0 +1,20 @@
+{
+  "name": "brave-local-marketplace",
+  "interface": {
+    "displayName": "Brave Local"
+  },
+  "plugins": [
+    {
+      "name": "brave-local",
+      "source": {
+        "source": "local",
+        "path": "./plugins/brave-local"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
