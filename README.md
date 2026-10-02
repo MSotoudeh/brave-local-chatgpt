@@ -93,3 +93,17 @@ The Windows ZIP is written to `dist/`.
 ## Current scope
 
 Version 0.2.x is Windows-only. macOS and Linux require separate accessibility backends.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Installation and distribution](docs/INSTALLATION.md)
+- [Security model](docs/SECURITY.md)
+- [Testing and validation](docs/TESTING.md)
+- [v0.2.1 release notes](docs/RELEASE-0.2.1.md)
+
+## Current release
+
+The current Windows release is **v0.2.1**:
+
+https://github.com/MSotoudeh/brave-local-chatgpt/releases/tag/v0.2.1
