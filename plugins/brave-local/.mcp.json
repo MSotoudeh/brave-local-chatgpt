@@ -1,5 +1,4 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
     "brave-local": {
       "type": "stdio",
@@ -11,6 +10,7 @@
         "-File",
         "${PLUGIN_ROOT}\\scripts\\brave-local-mcp.ps1"
       ],
+      "env": {},
       "cwd": "${PLUGIN_ROOT}"
     }
   }
