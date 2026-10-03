@@ -10,11 +10,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - name: Test
-        run: go test ./...
+      - name: Test MCP protocol
+        shell: powershell
+        run: .\scripts\test-mcp-protocol.ps1
       - name: Build distributable
         shell: powershell
         run: .\scripts\build-distributable.ps1
@@ -25,4 +23,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: brave-local-windows
-          path: dist/brave-local-0.2.0-windows.zip
+          path: dist/brave-local-0.2.1-windows.zip
