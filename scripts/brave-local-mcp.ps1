@@ -5,6 +5,24 @@ $DataRoot=$env:PLUGIN_DATA
 if(-not $DataRoot){$DataRoot=Join-Path $env:LOCALAPPDATA 'BraveLocal'}
 $env:BRAVE_LOCAL_DATA=$DataRoot
 New-Item -ItemType Directory -Force $DataRoot,(Join-Path $DataRoot 'tmp')|Out-Null
+$script:TraceEnabled=($env:BRAVE_MCP_TRACE -eq '1')
+$TraceRoot=Join-Path $env:LOCALAPPDATA 'BraveLocalRecovery\20261015'
+$TracePath=Join-Path $TraceRoot 'mcp-rpc-trace.log'
+if($script:TraceEnabled){New-Item -ItemType Directory -Force $TraceRoot|Out-Null}
+$script:TraceEmptyMethodCount=0
+$script:TraceInvalidShapeCount=0
+function Trace-Rpc($phase,$method,$id){
+  if(-not $script:TraceEnabled){return}
+  try{
+    if($phase -eq 'received' -and [string]::IsNullOrEmpty([string]$method)){
+      $script:TraceEmptyMethodCount++
+      if($script:TraceEmptyMethodCount -notin @(1,10,100,1000)){return}
+    }elseif($phase -eq 'handled' -and [string]::IsNullOrEmpty([string]$method)){return}
+    $line='{0:o} pid={1} phase={2} method={3} id={4}{5}' -f (Get-Date),$PID,$phase,$method,$id,[Environment]::NewLine
+    [IO.File]::AppendAllText($TracePath,$line,[Text.UTF8Encoding]::new($false))
+  }catch{}
+}
+Trace-Rpc 'started' '' ''
 
 function Rpc-Result($id,$result){
   [ordered]@{jsonrpc='2.0';id=$id;result=$result}|ConvertTo-Json -Depth 20 -Compress
@@ -108,13 +126,39 @@ function Call-Bridge($toolName,$argsObject){
   $tmp=Join-Path $DataRoot 'tmp'
   $reqPath=Join-Path $tmp ($id + '.req.json')
   $resPath=Join-Path $tmp ($id + '.res.json')
+  $proc=$null
+  $stdoutRead=$null
+  $stderrRead=$null
   $worker=Join-Path $PluginRoot 'scripts\uia-command.ps1'
   if(-not (Test-Path $worker)){return Tool-Error 'worker_missing' 'UI Automation worker is missing.'}
   try {
     [ordered]@{id=$id;command=$command;params=$params} |
       ConvertTo-Json -Depth 12 -Compress |
       Set-Content -Path $reqPath -Encoding UTF8
-    & $worker -RequestPath $reqPath -ResponsePath $resPath
+    $hostExe=Join-Path $PSHOME $(if($PSVersionTable.PSEdition -eq 'Core'){'pwsh.exe'}else{'powershell.exe'})
+    $startInfo=New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName=$hostExe
+    $startInfo.Arguments='-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -RequestPath "{1}" -ResponsePath "{2}"' -f $worker,$reqPath,$resPath
+    $startInfo.UseShellExecute=$false
+    $startInfo.CreateNoWindow=$true
+    $startInfo.RedirectStandardOutput=$true
+    $startInfo.RedirectStandardError=$true
+    $proc=[System.Diagnostics.Process]::Start($startInfo)
+    Trace-Rpc 'worker-started' $command $id
+    $stdoutRead=$proc.StandardOutput.ReadToEndAsync()
+    $stderrRead=$proc.StandardError.ReadToEndAsync()
+    if(-not $proc.WaitForExit(20000)){
+      $proc.Refresh()
+      if(-not $proc.HasExited){
+        try{$proc.Kill();$proc.WaitForExit()}catch{}
+        Trace-Rpc 'worker-timeout' $command $id
+        return Tool-Error 'worker_timeout' 'UI Automation worker exceeded its 20 second limit and was stopped.'
+      }
+    }
+    $proc.WaitForExit()
+    $null=$stdoutRead.GetAwaiter().GetResult()
+    $null=$stderrRead.GetAwaiter().GetResult()
+    Trace-Rpc 'worker-finished' $command $id
     if(-not (Test-Path $resPath)){return Tool-Error 'bridge_error' 'UI Automation worker produced no response.'}
     $resp=Get-Content $resPath -Raw | ConvertFrom-Json
     if(-not $resp.ok){
@@ -126,6 +170,10 @@ function Call-Bridge($toolName,$argsObject){
   } catch {
     return Tool-Error 'bridge_error' $_.Exception.Message
   } finally {
+    if($proc){
+      try{if(-not $proc.HasExited){$proc.Kill();$proc.WaitForExit(2000)}}catch{}
+      $proc.Dispose()
+    }
     Remove-Item $reqPath,$resPath -Force -ErrorAction SilentlyContinue
   }
 }
@@ -173,16 +221,41 @@ while($true){
     [Console]::Out.Flush()
     continue
   }
-  if($null -eq $req.id -and [string]$req.method -ne 'initialize'){
-    if([string]$req.method -eq 'notifications/initialized'){continue}
+  # Responses and miscellaneous non-request frames have no method. If fed
+  # back into stdin by a broken host pipe, answering them creates an error
+  # feedback loop. Never emit another frame for such input.
+  $methodProperty=if($null -ne $req){$req.PSObject.Properties['method']}else{$null}
+  $methodValue=if($null -ne $methodProperty){[string]$methodProperty.Value}else{''}
+  if([string]::IsNullOrWhiteSpace($methodValue)){
+    $script:TraceInvalidShapeCount++
+    if($script:TraceInvalidShapeCount -in @(1,10,100,1000)){
+      Trace-Rpc 'ignored-nonrequest' '' ''
+    }
+    continue
+  }
+  # All JSON-RPC notifications must be one-way.
+  if($methodValue.StartsWith('notifications/',[StringComparison]::Ordinal)){
+    continue
   }
   try {
+    if($null -eq $req -or [string]::IsNullOrEmpty([string]$req.method)){
+      if($script:TraceInvalidShapeCount -lt 3){
+        $script:TraceInvalidShapeCount++
+        $keys='null'
+        if($null -ne $req){$keys=(@($req.PSObject.Properties | ForEach-Object {$_.Name}) -join ',')}
+        Trace-Rpc 'invalid-shape' ('length='+$line.Length+' keys='+$keys) ([string]$req.id)
+      }
+    }
+    Trace-Rpc 'received' ([string]$req.method) ([string]$req.id)
     $out=Handle-Request $req
+    Trace-Rpc 'handled' ([string]$req.method) ([string]$req.id)
   } catch {
     $out=Rpc-Error $req.id -32603 $_.Exception.Message
   }
   if($null -ne $out){
+    Trace-Rpc 'response-ready' ([string]$req.method) ('id='+[string]$req.id+' chars='+$out.Length)
     [Console]::Out.WriteLine($out)
     [Console]::Out.Flush()
+    Trace-Rpc 'response-flushed' ([string]$req.method) ([string]$req.id)
   }
 }
