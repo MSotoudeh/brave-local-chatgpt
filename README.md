@@ -1,5 +1,9 @@
 # Brave Local for ChatGPT
 
+> **Repository status: legacy / compatibility only (2026-10-27).**
+> New development and the Playwright-capability roadmap live in [MSotoudeh/brave-chatgpt-bridge](https://github.com/MSotoudeh/brave-chatgpt-bridge).
+> The PowerShell v0.2.1 release and its Git history remain available for existing installations. No forced migration is required.
+
 Brave Local is a Windows desktop plugin that lets ChatGPT work with the Brave browser that is already open on the same PC.
 
 It does **not** require:
